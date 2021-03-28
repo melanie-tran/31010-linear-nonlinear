@@ -1,0 +1,419 @@
+---
+title: "31010 - Assignment 6"
+author: "Melanie Tran"
+date: "03/01/2021"
+output: html_document
+---
+
+
+**1.The dataset ‘grad school acceptance.csv’ contains information on GRE, GPA, and undergraduate university rankings.**
+
+```{r}
+## read the data 
+grad <- read.csv('grad school acceptance.csv', header=TRUE)
+head(grad)
+```
+
+```{r}
+summary(grad)
+```
+
+**Estimate a binomial model with intercept only using the logit link function. Interpret the intercept coefficient.**
+```{r}
+m1 <- glm(accepted ~ 1, data = grad, family = binomial(link="logit"))
+summary(m1)
+```
+
+Compute the average acceptance rate from the model results. Solve for $\hat{p} = e^{b_1}/1 + e^{b_1}$
+```{r}
+b1 <- m1$coefficients[1]
+p_hat1 <- exp(1)**(b1)/ (1 + (exp(1)**b1))
+p_hat1
+```
+
+Confirm $\hat{p}$ manually. 
+```{r}
+avg_prob1 <- sum(grad$accepted)/length(grad$accepted)
+avg_prob1
+```
+
+We get the same $\hat{p}$ value. 
+```{r}
+cbind(p_hat1, avg_prob1)
+```
+**RESULTS: **
+We get $B_1$ as -0.7653 and average acceptance rate $\hat{p}$ as 0.3175 of applicants getting accepted to the university. 
+
+
+**Estimate a model with intercept and GPA scores using the logit link function. What is the impact of an unit change in GPA scores on the odds?**
+```{r}
+## create model with gpa 
+m2 <- glm(accepted ~ 1 + gpa, data = grad, family = binomial(link="logit"))
+summary(m2)
+```
+
+**RESULTS:** Beta x probability x (1-probability). A unit change in GPA score leads to a 0.2253169 increase in the probability of acceptance. If you have a change, you are assuming all other constants are equal.
+
+**What is the impact of an unit change in GPA scores on the probability of acceptance for an individual with an average GPA score?**
+Compute the average GPA score from the model results. Solve for $\hat{p} = e^{b_1 + b_2(x_2)}/1 + e^{b_1 + b_2(x_2)}$
+
+$p_{gpa} = e^{X_i^TB}/1 + e^{X_i^TB}$
+
+```{r}
+b2 <- m2$coefficients[2]
+X <- 1
+p_gpa <- exp(1)**(1*b2)/(1+exp(1)**(1*b2))
+p_gpa
+```
+
+Determine the impact of a unit change in GPA scores. 
+```{r}
+impact_GPA <- p_gpa * b2 #multiply the B2 with the probability.
+impact_GPA
+```
+**RESULTS:** The GPA score increases by 1.05 per unit increase in acceptance.The probability of the GPA score would increase from 0.741 to 0.779 when you hold the intercept constant. 
+
+**Estimate the binomial model with logit link function and all available covariates. Interpret the results, including coefficients, z-values, p-values, and residual deviance.**
+
+```{r}
+#build the model
+full_model <- glm(accepted ~ gre + gpa + ranking + 1, data = grad, family = binomial(link="logit"))
+summary(full_model)
+```
+
+**Coefficients for the model with all covariates. **
+
+*For a one unit increase in gre, the z-score increases by 0.002. For each one unit increase in gpa, the z-score increases by 0.840. Having attended an undergraduate institution of rank of 2, versus an institution with a rank of 1, the z-score decreases by 0.675.The coefficients for each covariate are within their respective confidence intervals.*
+```{r}
+full_model$coefficients
+confint(full_model)
+```
+
+**Z-Values for the model with all covariates. **
+
+*Z-Values: The z values for GRE and GPA are roughly 2 standard deviations greater than the mean. The z values for Rank02 is roughly 2 standard deviations below the mean. The z values for Rank03 and Rank04 are almost 4 standard deviations below the mean.*
+
+```{r}
+coef(summary(full_model))[,"z value"]
+```
+
+**P-Values for the model with all covariates.**
+
+*P-Values: All parameters are statistically significant with p-values < 0.05. The null hypothesis is rejected.*
+```{r}
+coef(summary(full_model))[,"Pr(>|z|)"]
+```
+
+**Deviance for the model with all covariates.** 
+
+*The deviance of the model is 458.5175 on 394 degrees of freedom (n = 400 - 6 covariates).*
+```{r}
+full_model$deviance
+full_model$df.residual
+```
+
+**What is the goodness of fit for the model with GRE, GPA, and rankings?**
+
+*I performed the goodness of fit tests using the p-value of the deviance and Pearson residual. Using the p-value for deviance calculation, the p-value was 0.014. For pearson, the p-value was 0.441*
+
+```{r}
+## P value residual deviance
+pval_dev <- pchisq(full_model$deviance,df=full_model$df.residual,lower.tail=FALSE)
+pval_dev
+```
+Calculate Pearson p-value using residuals. 
+```{r}
+## PEARSON RESIDUAL
+pear <- sum(residuals(full_model,type="pearson")^2)
+pear
+
+pear_pval <- pchisq(pear,df=full_model$df.residual,lower.tail=FALSE)
+pear_pval
+```
+
+**How does the model with GRE, GPA, and rankings compare with the model with GPA only?**
+
+Comparisons between Model with GPA Only (m2) vs. Model with GRE, GPA, and Ranking (full_model):
+
+- P values: P values for both M2 and full_model are statistically significant (less than 0.05)
+
+- Z value: The z value for M2 gpa is 3.517 standard deviations higher than the mean compared to the full_model gpa is 2.423 standard deviations higher than the mean. 
+
+- Deviance: M2 has a higher residual deviance of 486.97 while the full_model has 458.52.
+
+- Goodness of Fit: Compared to our GPA only logit model (m2), there is a decrease in 28.45 deviance, increase in degrees of freedom by 4, and an associated p-value of less than 0.001 - our full_model with all predictors (gpa, gre, ranking) fits better than the m2 model.
+
+```{r}
+summary(m2)
+```
+
+```{r}
+summary(full_model)
+```
+Difference between goodness of fit between M2 and full_model.
+```{r}
+## deviance delta
+(gpa_dev_delta <- m2$deviance - full_model$deviance)
+
+## df delta
+(gpa_df_delta <- m2$df.residual - full_model$df.residual)
+
+## chi square test p-value delta
+pchisq(gpa_dev_delta, gpa_df_delta, lower.tail = FALSE)
+```
+
+
+
+**Estimate the binomial probit model using the probit link function. Interpret the results.**
+
+Probit (probit_full_model):
+
+- P values: P values for probit model are statistically significant (less than 0.05)
+
+- Z value: The z values for the logit model and probit model are very similar.The coefficients of the probit model are within the bounds of the confidence interval. 
+
+- Deviance: The logit model has a slightly higher residual deviance of 458.52 while the probit model has 458.41.
+
+- Goodness of Fit: Compared to our null probit model, there is a decrease in 41.56 deviance and an associated p-value of less than 0.001 - our probit model with all predictors (gpa, gre, ranking) fits significantly better than an empty model.
+
+```{r}
+## create probit model
+probit_full_model <- glm(accepted ~ gre + gpa + ranking + 1, data = grad, family = binomial(link="probit"))
+summary(probit_full_model)
+```
+Probit coefficients are within their respective confidence intervals.
+```{r}
+probit_full_model$coefficients
+confint(probit_full_model)
+```
+
+Null probit model vs Full probit model.
+```{r}
+## deviance delta
+with(probit_full_model, null.deviance - deviance)
+
+## df delta
+with(probit_full_model, df.null - df.residual)
+
+## chi square test p-value delta
+with(probit_full_model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
+
+
+**2. The number of deaths from leukemia and other cancers among survivors of the Hiroshima atom bomb are shown in the ‘z1050.hiroshima.RData’, classified by the radiation dose received. The data refer to deaths during the period 1950-59 among survivors who were aged 25 to 64 years in 1950. Obtain a suitable model to describe the dose-response relationship between radiation and the proportional mortality rates for leukemia.**
+
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 6/z1050.hiroshima.RData")
+```
+
+```{r}
+# rename and rearrange data
+hiroshima <- dta
+hiroshima <- hiroshima[, c(3, 1, 2)]
+hiroshima
+```
+Binomial logit model for leukemia deaths related to doses.
+```{r}
+#build the model
+hiro_mod <- glm( cbind(leukemia, other)~dose, data=hiroshima, family = binomial(link = "logit"))
+summary(hiro_mod)
+```
+
+Coefficients and confidence intervals - the coefficients are within bounds of the confidence interval.
+```{r}
+hiro_mod$coefficients
+confint(hiro_mod)
+```
+Goodness of fit test.
+```{r}
+## P-value of residual deviance 
+pchisq(hiro_mod$deviance,df=hiro_mod$df.residual,lower.tail=FALSE)
+
+
+## PEARSON RESIDUAL
+pear_hiro <- sum(residuals(hiro_mod,type="pearson")^2)
+pear_hiro
+
+pear_pval_hiro <- pchisq(pear_hiro,df=hiro_mod$df.residual,lower.tail=FALSE)
+pear_pval_hiro
+```
+Plotted binomial logit model for leukemia deaths related to doses.
+```{r}
+# plot data
+plot(x = hiroshima$dose, 
+     y = hiroshima$leukemia,
+     main = "Logit Model of the Probability of Leukemia Deaths, Given Dose",
+     xlab = "doses",
+     ylab = "leukemia deaths",
+     pch = 20,
+     xlim = c(0,20),
+     ylim = c(-0.4, 1.4),
+     cex.main = 0.85)
+
+# add horizontal dashed lines and text
+abline(h = 1, lty = 2, col = "darkred")
+abline(h = 0, lty = 2, col = "darkred")
+text(2.5, 0.9, cex = 0.8, "Leukemia")
+text(2.5, -0.1, cex= 0.8, "Other")
+
+# add estimated regression line
+x <- seq(0, 20, 0.01)
+y <- predict(m2, list(gpa = x), type = "response")
+
+lines(x, y, lwd = 1.5, col = "steelblue")
+```
+
+**RESULTS:** The binomial logit model for the dose-leukemia deaths relationship is: $y = -3.489 + 0.014dose$
+For one unit increase in leukemia related deaths, there is a 1.014 increase in dose. Dose is statistically significant with a p-value of 2.15e-15. This model has a very small Pearson residual deviance at 0.43206 on 4 degrees of freedom which indicates a high goodness of fit. 
+
+
+**3. The dataset ‘crash.csv’ consists of drivers involved in a crashes for a given year. The following information was available for each accident: driver’s age cohort (agecat), sex, severity of crash (degree), road user class, and accident frequency (number). Develop a binomial model that explains the proportion of car crashes that are non-casualty versus injury or fatal. Explain your reasoning and the model diagnostics. Conduct preliminary exploratory data analysis if necessary to support your reasoning. Please note that you will have to organized the data before you are able to apply the glm function.**
+
+```{r}
+crash <- read.csv('crash.csv', header=TRUE)
+head(crash)
+```
+
+**Exploratory Data Analysis**
+```{r}
+## look at the counts of the data 
+lapply(crash[, c("agecat","roaduserclass","sex","degree", "number")], table)
+```
+Cleaning up data set for consistency.
+```{r}
+## clean up agecat so 040-49 is 40-49
+n = length(crash$agecat)
+for (i in (1:n)) {
+        if (crash$agecat[i] == "040-49") {
+                crash$agecat[i] <-  "40-49"
+        } else {
+                crash$agecat[i] <- crash$agecat[i]
+        }
+                       
+}
+
+## clean up roaduserclass so 0-car is car
+n = length(crash$roaduserclass)
+for (i in (1:n)) {
+        if (crash$roaduserclass[i] == "0-car") {
+                crash$roaduserclass[i] <-  "car"
+        } else {
+                crash$roaduserclass[i] <- crash$roaduserclass[i]
+        }
+                       
+}
+
+## clean up sex so 0-male is male
+n = length(crash$sex)
+for (i in (1:n)) {
+        if (crash$sex[i] == "0-male") {
+                crash$sex[i] <-  "male"
+        } else {
+                crash$sex[i] <- crash$sex[i]
+        }
+                       
+}
+head(crash,20)
+```
+
+
+Create columns to get the number of accidents for fatal, injury, and non-casualty.
+```{r}
+## create loop to get the number of fatal accidents 
+n = length(crash$degree)
+fatal = numeric(n)
+for (i in (1:n)) {
+        if (crash$degree[i] == "fatal") {
+                fatal[i] <-  crash$number[i]
+        } else {
+                fatal[i] <-  0
+        }
+                       
+}
+
+
+## create loop to get the number of injury accidents 
+n = length(crash$degree)
+injury = numeric(n)
+for (i in (1:n)) {
+        if (crash$degree[i] == "injury") {
+                injury[i] <-  crash$number[i]
+        } else {
+                injury[i] <-  0
+        }
+                       
+}
+
+
+## create loop to get the number of noncasualty accidents 
+n = length(crash$degree)
+noncasualty = numeric(n)
+for (i in (1:n)) {
+        if (crash$degree[i] == "noncasualty") {
+                noncasualty[i] <-  crash$number[i]
+        } else {
+                noncasualty[i] <-  0
+        }
+                       
+}
+
+#combine fatal, injury, and noncasualty with dataset 
+crash <- cbind(crash,fatal,injury,noncasualty)
+head(crash,20)
+```
+**MY MODELS**
+
+**FATAL:** *Binomial logit model for fatal (1) versus non-casualty (0).*
+
+Based on the summary(fatal_mod) results, this model has four statistically signficant parameters: agecat: 60+, roaduserclass: bus + truck, roaduserclass: car, and roaduserclass: motorcycle. The sex and remaining agecat groups had p-values > 0.05 therefore they are not statistically signficant and can be removed to better fit the model. The residual deviance is 6559.7 on 119 degrees of freedom. Performing the chisquare - Pearson goodness of fit test indicates this is not a well-fit model due to its high number of residuals and small p-value. 
+```{r}
+fatal_mod <- glm(cbind(fatal, noncasualty) ~ agecat + roaduserclass + sex, data = crash, family = binomial(link = "logit"))
+summary(fatal_mod)
+```
+
+```{r}
+## P vaue residual deviance
+pchisq(fatal_mod$deviance,df=fatal_mod$df.residual,lower.tail=FALSE)
+
+## PEARSON RESIDUAL
+pear_fatal <- sum(residuals(fatal_mod,type="pearson")^2)
+pear_fatal
+
+pear_pval_fatal <- pchisq(pear_fatal,df=fatal_mod$df.residual,lower.tail=FALSE)
+pear_pval_fatal
+```
+
+
+
+**INJURY:** *Binomial logit model for injury (1) versus non-casualty (0).*
+
+Based on the summary(injury_mod) results, all parameters are statistically signficant with p-values < 0.05. The residual deviance is 99943 on 145 degrees of freedom.
+```{r}
+injury_mod <- glm(cbind(injury, noncasualty) ~ agecat + roaduserclass + sex, data = crash, family = binomial(link = "logit"))
+summary(injury_mod)
+```
+
+```{r}
+pchisq(injury_mod$deviance,df=injury_mod$df.residual,lower.tail=FALSE)
+```
+```{r}
+## PEARSON RESIDUAL
+pear_injury <- sum(residuals(injury_mod,type="pearson")^2)
+pear_injury
+
+pear_pval_injury <- pchisq(pear_injury,df=injury_mod$df.residual,lower.tail=FALSE)
+pear_pval_injury
+```
+
+**NON-CASUALTY - FATAL:** *Binomial logit model for non-casualty (1) vs fatal (0).*
+```{r}
+noncas_fatal <- glm(cbind(noncasualty, fatal) ~ agecat + roaduserclass + sex, data = crash, family = binomial(link = "logit"))
+summary(noncas_fatal)
+```
+
+
+**NON-CASUALTY - INJURY:** *Binomial logit model for non-casualty (1) versus injury (0).*
+```{r}
+noncas_injury <- glm(cbind(noncasualty,injury) ~ agecat + roaduserclass + sex, data = crash, family = binomial(link = "logit"))
+summary(noncas_injury)
+```

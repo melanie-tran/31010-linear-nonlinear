@@ -1,0 +1,413 @@
+---
+title: "31010 - Assignment 3"
+author: "Melanie Tran"
+date: "2/8/2021"
+output: html_document
+---
+
+Derive the analytical version of the Newton-Raphson algorithm (including $f(x)$ and $f′(x))$ for each expression below (separately). For each expression below, implement the Newton-Raphson algorithm, and find at least one root for each non-linear function below. Also plot $f(x)$ around the solution(s). Prepare a data table with values for $x$, $f(x)$, $f′(x)$, and err for each iteration.
+
+-- Q1 PART 1: **$3x^2−2x−4 = 0$**
+
+*Apply Newton-Raphson method to find first root.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 0.3
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  (3*(x**2))- (2*x)- 4
+}
+
+fp <- function(x){
+  (6*x - 2)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for first root.*
+```{r}
+dta
+```
+
+*Identify first root.*
+```{r}
+q1_root1 <- x0
+```
+
+
+*Apply Newton-Raphson method to find second root.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 1
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  (3*x**2)- (2*x)- 4
+}
+
+fp <- function(x){
+  (6*x - 2)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for second root.*
+```{r}
+dta
+```
+
+Identify second root.
+```{r}
+q1_root2 <- x0
+```
+
+*Identify roots for $3x^2−2x−4 = 0$.*
+```{r}
+q1_root1
+q1_root2
+```
+
+-- Q1 PART 2: **$e^x−x^4 = 0$** 
+
+*Apply Newton-Raphson method to find first root.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 0.9
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  (exp(1)**x) - (x**4)
+}
+
+fp <- function(x){
+  (exp(1)**x) - (4*x**3)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for first root.*
+```{r}
+dta
+```
+
+*Identify first root for for $e^x−x^4 = 0$.*
+```{r}
+(q2_root1 <- x0)
+```
+
+*Apply Newton-Raphson method to find second root.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 0.1
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  (exp(1)**x) - (x**4)
+}
+
+fp <- function(x){
+  (exp(1)**x) - (4*x**3)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for second root.*
+```{r}
+dta
+```
+
+*Identify second root for $e^x−x^4 = 0$.*
+```{r}
+(q2_root2 <- x0)
+```
+
+*Identify roots for $e^x−x^4 = 0$.*
+```{r}
+q2_root1
+q2_root2
+```
+
+
+-- Q1 PART 3: **$x^3+4x^2−10=0$**
+
+*Apply Newton-Raphson method.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 1.5
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  (x**3) + (4*x**2)- 10
+}
+
+fp <- function(x){
+  (3*x**2 + 8*x)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for root.*
+```{r}
+dta
+```
+
+*Identify root for for $e^x−x^4 = 0$.*
+```{r}
+(q3_root <- x0)
+```
+
+-- Q1 PART 4: **$x−e^{-x^2}=0$**
+
+*Apply Newton-Raphson method.*
+```{r}
+tol <- 10^(-5)
+err <- 10^5
+x0 <- 0.1
+```
+
+```{r}
+x <- NULL
+f <- function(x){
+  x - (exp(1)**(-x**2))
+}
+
+fp <- function(x){
+  (2*exp(-x^2) + 1)
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - f(x0)/fp(x0)
+    err <- abs(x-x0)
+    dta <- rbind(dta,data.frame(k=k,x=x0,f=f(x0),fp=fp(x0),err=err))
+    x0 <- x
+    k <- k + 1
+}
+
+par(mfrow=c(2,2))
+plot(dta$k,dta$x,type="l",col="blue",xlab="k",ylab="x")
+plot(dta$k,dta$f,type="l",col="blue",xlab="k",ylab="f")
+plot(dta$k,dta$fp,type="l",col="blue",xlab="k",ylab="fp")
+plot(dta$k,dta$err,type="l",col="blue",xlab="k",ylab="err or step")
+```
+
+*Data for root.*
+```{r}
+dta
+```
+
+*Identify root for $x−e^{-x^2}=0$*
+```{r}
+(q4_root <- x0)
+```
+
+2. Write a R code for $f(x)$ and $Df(x)$. Run the Newthon-Raphson method and search for the solution. Prepare a table with values for $x$, $f(x)$, $Df^{−1}(x)$, and err for each iteration. Explain what is happening during the iterations. Is the algorithm converging? Why or why not? Choose your initial values carefully.
+
+```{r}
+tol <- 10^(-10)
+err <- 10^5
+x0 <- matrix(c(1,1,1))
+```
+
+```{r}
+x <- NULL
+f <- function(x){ 
+  matrix(c((x[1] + x[2] + x[3]**2 -12), 
+            (x[1]**2 -x[2] + x[3] - 2), 
+            (2*x[1]**2 -x[2]**2 + x[3] - 1)),byrow=TRUE,nrow=length(x))
+}
+Df <- function(x){
+  (matrix(c(1, 1, 2*x[3], 
+            2*x[1],-1,1,
+            4*x[1], -2*x[2],1), byrow = TRUE, nrow=length(x)))
+}
+
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - solve(Df(x0)) %*% f(x0)
+    err <- max(abs(x-x0))
+    dta <- rbind(dta,data.frame(k=rep(k,length(x0)),x=x0,f=f(x0),invDf=solve(Df(x0)),err=x-x0))
+    x0 <- x
+    k <- k + 1
+}
+
+dta1 <- aggregate(x~k,dta,FUN=head,1)
+dta2 <- aggregate(x~k,dta,FUN=tail,2)
+dta3 <- aggregate(x~k,dta, FUN = tail,1)
+
+
+par(mfrow=c(1,2))
+plot(dta1$k,dta1$x,type="l",col="red",xlab="k",ylab="x1")
+plot(dta2$k,dta2$x[,1],type="l",col="blue",xlab="k",ylab="x2")
+plot(dta3$k,dta3$x,type="l",col="green",xlab="k",ylab="x3")
+
+
+```
+
+
+*Combined results of $x$, $f(x)$, $Df−1(x)$, and err for each iteration.*
+```{r}
+dta
+```
+
+```{r}
+dta1
+```
+
+```{r}
+dta2
+```
+
+```{r}
+dta3
+```
+**Based on the results of the plots and dta, the algorithm is converging at x = (1,2,3).All three functions will intersect at which the D(f) is 0. Therefore, we can tell that there are three possible solutions within the range of values for x1,x2, and x3.**
+
+
+
+3. In the example above, a solution for a system of two non-linear equations was found from a starting value $x_0=(1,1)$. Find a different solution assuming $x_0=c(−1,1)$. Prepare plots showing the conversion of each variable as well as a table with all key components of Newton-Raphson method for each iteration.
+
+```{r}
+tol <- 10^(-10)
+err <- 10^5
+x0 <- matrix(c(-1,1))
+```
+
+```{r}
+x <- NULL
+f <- function(x)(matrix(c(log(x[1]^2+2*x[2]^2+1)-0.5,x[2]-x[1]^2+0.2)))
+Df <- function(x)(matrix(c(2*x[1]/(x[1]^2+2*x[2]^2+1),4*x[2]/(x[1]^2+2*x[2]^2+1),-2*x[1],1),byrow=TRUE,nrow=length(x)))
+k <- 0
+dta <- NULL
+
+while (err>tol){
+    x <- x0 - solve(Df(x0)) %*% f(x0)
+    err <- max(abs(x-x0))
+    dta <- rbind(dta,data.frame(k=rep(k,length(x0)),x=x0,f=f(x0),invDf=solve(Df(x0)),err=x-x0))
+    x0 <- x
+    k <- k + 1
+}
+
+dta1 <- aggregate(x~k,dta,FUN=head,1)
+dta2 <- aggregate(x~k,dta,FUN=tail,1)
+
+par(mfrow=c(1,2))
+plot(dta1$k,dta1$x,type="l",col="blue",xlab="k",ylab="x1") #plot goes from -1 to -0.7
+plot(dta2$k,dta2$x,type="l",col="blue",xlab="k",ylab="x2") #plot doesn't change 
+
+#symmetrical when we change from (1,1) to (-1,1)
+```
+```{r}
+plot(dta1$x,dta2$x,ylim = c(0,2), type = 'l')
+```
+
+
+```{r}
+dta1
+```
+
+
+```{r}
+dta2
+```
+

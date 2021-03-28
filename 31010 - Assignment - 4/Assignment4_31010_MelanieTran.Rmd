@@ -1,0 +1,194 @@
+---
+title: "Assignment 4 - MSCA 31010"
+author: "Melanie Tran" 
+date: "2/15/2021"
+output: html_document
+---
+
+
+**1) Estimate a generalized linear model assuming the response follows a Poisson distribution, the mean response is linked to the linear predictor by a log function. Use the dataset ‘’z1037.poisson-loglink.RData’’ to estimate the parameters in the linear predictor by maximum likelihood estimation.**
+
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 4/z1037.poisson-loglink.RData")
+library(reshape2)
+```
+
+
+```{r}
+dta <- data.frame(ite=numeric(),b0=numeric(),b1=numeric(),err=numeric(),stringsAsFactors=FALSE)
+```
+
+
+**First, estimate the parameters of the GLM with Poisson response and log link function by modifying the Newton-Raphson algorithm.**
+```{r}
+
+y <- matrix(regdta$y,ncol=1)
+X <- matrix(c(regdta$x1,regdta$x2),nrow = 100, ncol=2, byrow = FALSE)
+
+b0 <- c(1,1)
+tol <- 1e-5
+err <- 1e10
+ite <- 0
+while (err>tol){
+
+    var.y <- exp(X %*% b0) #based on log link
+    W <- diag(as.numeric(var.y),nrow=length(var.y),ncol=length(var.y)) #mu = var.y
+    z <-  (X %*% b0)+(y - var.y) *(exp(-X %*% b0)) #updated based on log link
+
+    b1 <- solve(t(X) %*% W %*% X) %*% (t(X) %*% W %*% z)
+
+    err <- max(abs(b1-b0))
+    dta <- rbind(dta,data.frame(ite,b0,b1,err,stringsAsFactors=FALSE)) 
+    
+    b0 <- b1
+    ite <- ite + 1
+}
+```
+
+**Compute and show the values for $W$, $z$, $X^TWX$, and $X^TWz$ on the last iteration.**
+
+*$W$ for Poisson - Log link*
+```{r}
+W[1:7,1:7]
+```
+
+
+*$z$ for Poisson - Log link*
+```{r}
+head(z)
+```
+*$X^TWX$ for Poisson - Log link*
+```{r}
+t(X) %*% W %*% X
+```
+
+*$X^TWz$ for Poisson - Log link*
+```{r}
+t(X) %*% W %*% z
+```
+
+*$B_1$ and $B_2$ for Poisson - Log link*
+```{r}
+b.no <- rep(c(paste0("b_",1),paste0("b_",2)),nrow(dta)/nrow(b0))
+dta <- cbind(dta,b.no)
+dta <- dta[,c("ite","b.no","b0")]
+dta <- dcast(dta,ite~b.no,value.var="b0")
+dta
+```
+
+**Plot the values of the parameters for every iteration.**
+```{r}
+par(mfrow=c(1,2), mar=c(2,5,2,1),oma=c(0,0,3,0))
+plot(dta$ite,dta$b_1,ylim=c(min(dta$b_1),max(dta$b_1)),xlab="No of Iterations",ylab="beta0",main="",pch=16,col="red",lty=2)
+plot(dta$ite,dta$b_2,ylim=c(min(dta$b_2),max(dta$b_2)),xlab="No of Iterations",ylab="beta1",main="",pch=16,col="red",lty=2)
+
+mtext("Newton-Raphson Method - Poisson (log)",outer=TRUE,cex=1.5)
+```
+
+**Estimate the parameters of the Poisson regression with log link function using the glm function in stats R package.**
+```{r}
+glm(y~x2,data=regdta,family=poisson(link="log"))$coefficients
+```
+**Do you get the same answer?**
+
+Yes, I got the same answer with an Intercept of  1.979 and $x2$ of 0.587.
+
+
+**2) Estimate a generalized linear model assuming the response follows a Normal distribution, the mean response is linked to the linear predictor by an identity function. Use the dataset ‘’z1037.normal-identity.RData’’ to estimate the parameters in the linear predictor by maximum likehood estimation.**
+
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 4/z1037.normal-identity.RData")
+library(reshape2)
+```
+
+```{r}
+dta <- data.frame(ite=numeric(),b0=numeric(),b1=numeric(),err=numeric(),stringsAsFactors=FALSE)
+```
+
+**First, estimate the parameters of the GLM with Normal response and link identity function by modifying the Newton-Raphson algorithm.**
+
+```{r}
+
+y <- matrix(regdta$y,ncol=1)
+X <- matrix(c(regdta$x1,regdta$x2),nrow = 100, ncol=2, byrow = FALSE)
+
+b0 <- c(1,1)
+tol <- 1e-5
+err <- 1e10
+ite <- 0
+while (err>tol){
+
+    var.y <- matrix(1, nrow = length(regdta$x2)) #var is 1 in gaussian
+    W <- diag(as.numeric(1/var.y),nrow=length(var.y),ncol=length(var.y))
+    z <- y 
+
+    b1 <- solve(t(X) %*% W %*% X) %*% (t(X) %*% W %*% z)
+
+    err <- max(abs(b1-b0))
+    dta <- rbind(dta,data.frame(ite,b0,b1,err,stringsAsFactors=FALSE)) 
+    
+    b0 <- b1
+    ite <- ite + 1
+}
+```
+
+
+**Compute and show the values for $W$, $z$, $X^TWX$, and $X^TWz$ on the last iteration.**
+
+*$W$ for Gaussian - Identity link*
+```{r}
+W[1:7,1:7]
+```
+*$z$ for Gaussian - Identity link*
+```{r}
+head(z)
+```
+*$X^TWX$ for Gaussian - Identity link*
+```{r}
+t(X) %*% W %*% X
+```
+
+*$X^TWz$ for Gaussian - Identity link*
+```{r}
+t(X) %*% W %*% z
+```
+*$B_1$ and $B_2$ for Gaussian - Identity link*
+```{r}
+b.no <- rep(c(paste0("b_",1),paste0("b_",2)),nrow(dta)/nrow(b0))
+dta <- cbind(dta,b.no)
+dta <- dta[,c("ite","b.no","b0")]
+dta <- dcast(dta,ite~b.no,value.var="b0")
+dta
+```
+
+**Plot the values of the parameters for every iteration.**
+```{r}
+par(mfrow=c(1,2), mar=c(2,5,2,1),oma=c(0,0,3,0))
+plot(dta$ite,dta$b_1,ylim=c(min(dta$b_1),max(dta$b_1)),xlab="No of Iterations",ylab="beta0",main="",pch=16,col="red",lty=2)
+plot(dta$ite,dta$b_2,ylim=c(min(dta$b_2),max(dta$b_2)),xlab="No of Iterations",ylab="beta1",main="",pch=16,col="red",lty=2)
+
+mtext("Newton-Raphson Method - Gaussian (identity)",outer=TRUE,cex=1.5)
+```
+
+**Estimate the parameters of the Gaussian regression with identity link function using the glm function in stats R package.**
+```{r}
+glm(y~x2,data=regdta,family=gaussian(link="identity"))$coefficients
+```
+**Do you get the same answer?**
+
+Yes, I got the same answer with an Intercept of 0.941 and $x2$ of 0.887.
+
+**State the mathematical representation of the the least squares estimator from a standard linear regression in matrix form.**
+```{r}
+least_squares <- solve((t(X) %*% X)) %*% t(X) %*% y
+```
+
+
+**Compute the estimate for the beta coefficients using the least squares estimator.**
+```{r}
+least_squares
+```
+
+**Do you get the same answer?**
+
+Yes, I got the same answer with an Intercept of 0.941 and $x2$ of 0.887.

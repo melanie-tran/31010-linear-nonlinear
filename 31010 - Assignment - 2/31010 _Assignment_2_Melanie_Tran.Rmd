@@ -1,0 +1,287 @@
+---
+title: "31010 - Assignment 2"
+author: "Melanie Tran"
+date: "02/01/2021"
+output: html_document
+---
+
+```{r, echo= FALSE,warning = FALSE}
+library(latex2exp)
+```
+
+**Chapter 3 Exponential Family of Distributions: #4, #5**
+
+*4. Replicate the charts for the Normal distribution shown in section 3.1. Include all 6 charts for each distribution.*
+
+Plotting $T(y)$ for Normal Distribution. 
+```{r}
+
+#Plotting T(y)
+normal_y <- seq(-0.5,0.7,by=0.01)
+sigma <- 0.15
+normal_t <- normal_y/sigma
+
+
+plot(normal_y,normal_t, type = 'l',xlab = "y", ylab = "T",xlim = c(-0.5,0.7), ylim = c(-4,4))
+
+```
+
+Plotting $\eta$ for Normal Distribution. 
+```{r}
+#Plotting eta
+normal_y <- seq(-0.5,0.7,by=0.01)
+mu <- 0.1
+sigma <- 0.15
+normal_eta <- rep(mu/sigma,length(normal_y))
+
+plot(normal_y,normal_eta, xlab = "y", ylab = "eta",type = 'l', xlim = c(-0.5,0.7))
+```
+
+Plotting $A(\eta)$ for Normal Distribution. 
+```{r}
+#Plotting A()
+normal_y <- seq(-0.5,0.7,by=0.01)
+mu <- 0.1
+sigma <- 0.15
+normal_a <- rep((mu**2)/(2*(sigma**2)),length(normal_y))
+
+plot(normal_y,normal_a,xlab = "y", type = 'l',ylab = "A",xlim = c(-0.5,0.7))
+```
+
+Plotting $\beta(y)$ for Normal Distribution. 
+
+```{r}
+#Plotting B()
+normal_y <- seq(-0.5,0.7,0.01)
+mu <- 0.1
+sigma <- 0.15
+normal_b <- -(normal_y**2)/(2*(sigma**2)) - 0.5*log(2*pi*sigma**2)
+plot(normal_y,normal_b, xlab = "y", ylab = "B", type = 'l')
+```
+
+Plotting Probability Mass Function for Normal Distribution. 
+```{r}
+#Plotting PMF
+normal_y <- seq(-0.5,0.7,0.01)
+pmf_n <- dnorm(normal_y, mean = 0.1, sd = 0.15)
+plot(normal_y,pmf_n, type = 'l', xlab = "y", ylab = 'f')
+
+
+```
+
+Plotting Cumulative Distribution Function for Normal Distribution. 
+```{r}
+#Plotting CDF
+normal_y <- seq(-0.5,0.7,0.01)
+cdf_n <- pnorm(normal_y, mean = 0.1, sd = 0.15)
+plot(normal_y,cdf_n, type = 'l', xlab = "y", ylab = 'F')
+
+```
+
+
+
+*5. Replicate the charts for the Binomial distribution shown in section 3.2. Include all 6 charts for each distribution.*
+
+Plotting $T(y)$ for Binomial Distribution.
+```{r}
+#Plotting T(y)
+p <- 0.7
+n <- 10
+binomial_y <- seq(0,10, by = 1)
+success <- 0:10 
+plot(binomial_y,success, xlab = "y", ylab = "T", type = 'l')
+```
+
+
+
+Plotting $\eta$ for Binomial Distribution. 
+
+```{r}
+#Plotting eta
+binomial_y <- seq(0,10, by = 1)
+p <- 0.7
+n <- 10
+binomial_eta <- rep(log((p/(1-p))),length(binomial_y))
+plot(binomial_y,binomial_eta, xlab = "y", type = 'l', ylab = "eta",xlim = c(0,10))
+```
+
+Plotting $\\A(p)$ for Binomial Distribution.
+```{r}
+#Plotting A()
+binomial_y <- seq(0,10, by = 1)
+p <- 0.7
+n <- 10
+binomial_a <- rep(-n*(log(1-p)),length(binomial_y))
+
+plot(binomial_y, binomial_a, xlab = "y", ylab = "A", type = 'l', xlim = c(0,10), ylim = c(8,16))
+```
+
+Plotting $\\B(y)$ for Binomial Distribution.
+
+```{r}
+#Plotting B()
+binomial_y <- seq(0,10,by = 1)
+p <- 0.7
+n <- 10
+
+binomial_b <- log(choose(n,binomial_y))
+plot(binomial_y,binomial_b, xlab = "y", ylab = "B", xlim = c(0,10), ylim = c(0,5.5),type = 'l')
+```
+
+Plotting Probability Mass Function for Binomial Distribution.
+```{r}
+binomial_y <- seq(0,10,1)
+p <- 0.7
+n <- 10
+plot(binomial_y,dbinom(binomial_y,size=n,prob=p),type="h",xlim = c(0,10), xlab = "y", ylab = "f")
+```
+
+Plotting Cumulative Distribution Function for Binomial Distribution.
+```{r}
+binomial_y <- seq(0,10,1)
+p <- 0.7
+n <- 10
+plot(binomial_y,pbinom(binomial_y,size=n,prob=p),type="h",xlim = c(0,10), xlab = "y", ylab = "F")
+```
+
+
+
+
+**Chapter 4: Maximum Likelihood Estimation:#1, #2** 
+
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 2/1030.lecture-mle.RData")
+```
+
+
+1. Based on the R dataset in the Lab folder (1030.lecture-mle.RData), reproduce the results presented above for the Binomial distribution. Plot results, maximum likelihood estimates and R code must be submitted.
+```{r}
+nb <- dta$binomial$n
+m <- 100
+p <- 0.6
+yb <- dta$binomial$y
+head(yb)
+plot(1:m,yb,type="l",col="red", ylab = 'y')
+```
+
+Build binomial log-likelihood and first derivative functions. 
+```{r}
+
+#log-likelihood
+bl <- function(p,yb=yb){
+  (sum(log(choose(nb,yb)))) + sum(yb)*(log(p)) + (sum(nb-yb))*(log(1-p))
+}
+
+#first derivative
+bdl <- function(p,yb=yb){
+    (1/p)*sum(yb)-(1/(1-p))*(sum(nb)-sum(yb))
+}
+```
+
+
+
+Calculate grid of values of $p$ from 0 to 1. 
+```{r}
+prob <- seq(0,1,by=0.01)
+
+```
+
+Calculate log likelihood function.
+```{r}
+loglike_b <- sapply(prob,bl,yb=yb)
+head(loglike_b)
+```
+
+
+Calculate the first derivative.
+```{r}
+dloglike_b <- sapply(prob,bdl,yb=yb)
+head(dloglike_b)
+```
+
+Calculate the $\widehat{p}$ based on the sample $y$.
+```{r}
+p.hat <- sum(yb)/sum(nb)
+p.hat
+```
+Plot the binomial log-likelihood and first derivative. 
+```{r}
+#plot log-likelihood
+par(mfrow=c(1,2))
+plot(prob,loglike_b,type="l",col="red", ylab = 'loglike')
+abline(v=p.hat)
+
+#plot first-derivative
+plot(prob,dloglike_b,type="l",col="red", ylim = c(-5000,10000),  ylab = 'dloglike')
+abline(v=p.hat)
+```
+
+*2. Based on the R dataset in the Lab folder (1030.lecture-mle.RData) reproduce the results presented above for the Poisson distribution. Plot results, maximum likelihood estimates and R code must be submitted.*
+
+
+```{r}
+np <- 1000
+lambda <- 3
+yp <- dta$poisson$y
+lambda_val <- seq(0,11,by=1)
+```
+
+
+Build Poisson log-likelihood and first derivative functions. 
+```{r}
+#log-likelihood
+pl <- function(lambda, yp=yp){
+    (log(lambda)*sum(yp))- (np*lambda) - sum(log(factorial(yp)))
+}
+
+#first derivative
+pdl <- function(lambda,yp=yp){
+    (1/lambda) * sum(yp) - np
+}
+```
+
+Calculate grid of values of $\lambda$ from 0 to 11. 
+```{r}
+lambda_val <- seq(0,11,by=1)
+lambda_val
+```
+
+Calculate the log likelihood with the grid of values of $\lambda$.
+```{r}
+loglike_p <- sapply(lambda_val,pl,yp)
+head(loglike_p)
+```
+
+Calculate the derivative with the grid of values of $\lambda$..
+```{r}
+dloglike_p <- sapply(lambda_val,pdl,yp)
+head(dloglike_p)
+```
+
+
+Calculate the $\widehat{\lambda}$ based on the sample $y$.
+```{r}
+lb.hat <- sum(yp)/np
+lb.hat
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(yp,type="h",col="red", xlim = c(0,1000),ylim = c(0,10))
+abline(h=lambda)
+hist(yp,xlim = c(0,10), ylim = c(0,250), main = 'Histogram of y', xlab ='y')
+abline(v=lambda,col="red")
+```
+
+Plot the log-likelihood and derivative functions for Poisson. 
+```{r}
+#plot log-likelihood
+par(mfrow=c(1,2))
+plot(lambda_val,loglike_p,type="l",col="red", xlab = 'lambda', ylab = 'loglike')
+abline(v=lb.hat)
+
+#plot first derivative
+plot(lambda_val,dloglike_p,type="l",col="red",xlab = 'lambda', ylab = 'dloglike')
+abline(v=lb.hat)
+```
+

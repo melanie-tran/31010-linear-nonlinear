@@ -1,0 +1,114 @@
+---
+title: "31010 - Assignment 5"
+author: "Melanie Tran"
+date: "2/20/2021"
+output: html_document
+---
+
+*Load the data.*
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 5/z1040.rpois-linear.RData")
+
+head(regdta) #view data
+```
+
+*Plot the data.*
+```{r}
+plot(regdta$y, regdta$x1)  
+plot(regdta$y, regdta$x2)
+plot(regdta$y, regdta$x3)
+```
+
+
+**Create a glm for Poisson with link as Identity function using our given data.**
+```{r}
+glm_pois = glm(y ~ x2 + x3, data = regdta, family = poisson(link = 'identity'))
+summary(glm_pois)
+```
+**Identify our betas ($B_1$, $B_2$, $B_3$)**
+```{r}
+glm_pois$coefficients
+
+B1 = glm_pois$coefficients[1]
+B2 = glm_pois$coefficients[2]
+B3 = glm_pois$coefficients[3]
+```
+
+**Using the anova() function, we can see the residual deviance decreases as the number of predictors increase from NULL to having all predictors.**
+```{r}
+anova(glm_pois)
+```
+
+**Create the log-likelihood function.**
+```{r}
+log_likelihood = function(y,lb) { 
+  ll = sum(y*log(lb)) - sum(lb) - sum(factorial(y))
+  return(ll)}
+```
+
+
+**Create saturated Poisson model by hand. This is our Saturated or "Perfect" model because the fitted responses ($y_i$) equal the observed responses ($y$). The log-likelihood function gives us the value where b_max maximizes the function.**
+```{r}
+y = regdta$y 
+b_max = log_likelihood(y = y,lb = y) #observed values = fitted values
+b_max
+```
+**Calculate $l(b;y)$, assuming $\mu_i = b_1+b_2x_2+b_3x_3$. This is the result of our Proposed model (intercept + at least 1 predictor). Use the fitted values to calculate.**
+```{r}
+y_hat = glm_pois$fitted.values
+head(y_hat)
+
+proposed_val = log_likelihood(y = y,lb = y_hat) #use fitted values as y_hat
+proposed_val
+```
+
+**Calculate $D$, assuming $\mu_i = b_1+b_2x_2+b_3x_3$. Compare it with the output from glm function in R.**
+```{r}
+glm_pois = glm(y ~ x2 + x3, data = regdta, family = poisson(link = 'identity'))
+glm_D3 = glm_pois$deviance
+glm_D3
+```
+
+```{r}
+mu3 = B1 + B2*(regdta$x2) + B3*(regdta$x3) #create mu value with 2 predictors (B2 and B3)
+D3 = 2*(b_max - (log_likelihood(y = y, lb = mu3))) #input into Deviance formula 
+D3
+```
+**Results:** For $\mu_i = b_1+b_2x_2+b_3x_3$, the GLM deviance output is approximately the same when compared to manually calculating the deviance: 31.60649 compared to 31.60938.
+
+
+**Calculate $D$, assuming $\mu_i = b_1+b_2x_2$. Compare it with the output from glm function in R.**
+```{r}
+glm_x2 = glm(y ~ x2, data = regdta, family = poisson(link = 'identity'))
+glm_x2$deviance
+```
+```{r}
+mu2 = B1 + B2*(regdta$x2) #create mu value with 1 predictor (B2)
+fitted_val2 = log_likelihood(y = y, lb = mu2) #calculate  value of proposed model
+D2 = 2*(b_max - fitted_val2) #input into Deviance formula
+D2
+```
+**Results:** For $\mu_i = b_1+b_2x_2$, the GLM deviance output is approximately the same when compared to manually calculating the deviance: 35.32003 compared to 35.40625.
+
+
+**Calculate $D$, assuming $\mu_i = b_1$. Compare it with the output from glm function in R.**
+```{r}
+glm_x1 = glm(y ~ x1, data = regdta, family = poisson(link = 'identity'))
+glm_x1$deviance
+```
+**The difference between deviance for the given model versus the saturated model deviance for Poisson is $2\sum_{i=1}^{n} (y_i(log(y_i/\mu_i)) - (y_i - \mu_i))$**
+```{r}
+mu1 = B1 #use only the predictor 
+D1 = 2* (sum((y *log(y/mu1)) - (y-mu1)))
+D1 
+```
+**Results:**For $\mu_i = b_1$, the GLM deviance output is approximately the same when compared to manually calculating the deviance: 37.38504 compared to 37.65799.
+
+
+**Explain why D changes from model to model.**
+Using anova() we can see the changes in deviance from model to model.
+```{r}
+anova(glm_pois)
+```
+
+The Residual Deviance gets smaller when you add additional predictors because these additional predictors ($B_2$ and $B_3$) are improving the fit to the model. As the Residual Deviance approaches zero, the better the fit of the model. Because the Proposed Model has all the predictors, it will have the lowest Residual Deviance (31.606) compared to the Null Model (37.385) which only has the intercept ($B_1$) and no predictors. The deviance is always larger or equal than zero - if the deviance is 0, that means the model is a perfect fit (our saturated model.)

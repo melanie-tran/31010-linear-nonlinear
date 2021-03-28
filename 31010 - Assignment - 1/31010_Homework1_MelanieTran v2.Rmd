@@ -1,0 +1,86 @@
+---
+title: "MSCA 31010 - HW 1"
+author: "Melanie Tran"
+date: "1/25/2021"
+output: html_document
+---
+```{r, echo= FALSE,warning = FALSE}
+library(latex2exp)
+```
+
+
+
+**Q1) For each of the situations below, identify the response and explanatory variables, variable types, and the generalized linear model that is well-suited to model the data. Make sure to justify your answer. Write down the linear predictor as well as the link function.**
+
+*Q1a) The effect of age, sex, height, daily food intake and minutes of daily exercise on a person’s weight.*
+
+ a) Response Variables: Weight
+ b) Explanatory Variables: Age, Sex, Height, Daily Food Intake, Minutes of Daily Exercise
+ c) Variable Types: 
+      i) Nominal/Categorical: Sex
+      ii) Count: Minutes of Daily Exercise
+      iii) Continuous: Age, Weight, Height, Daily Food Intake
+ d) GLM Distribution Family: Normal 
+ e) Linear Predictor: $\eta$ = $\beta_1$(age) + $\beta_2$(sex) + $\beta_3$(height) + $\beta_4$(daily_food_intake) + $\beta_5$(minutes_daily_exercise)
+ f) Link Function: The link function is the natural log because the response variable (person's weight) must be positive, continuous, and non-negative. The natural log function is $log(μ_i)=x_{i}^T\beta$. 
+
+
+*Q1b) The effect of sex, age, GPA, major, prior years of work experience, and prior income levels on whether a full-time graduate students finds employment upon graduation.*
+
+  a) Response Variables: Employment
+  b) Explanatory Variables: Sex, Age, GPA, Major, Prior Years of Work Experience, Prior Income Levels
+  c) Variable Types: 
+      i) Nominal/Categorical: Employment, Sex, Major
+      ii) Count: Prior Years of Work Experience 
+      iii) Continuous: Age, GPA, Prior Income Levels (if income data type is INT ex. $100,000 not "High Income")
+  d) GLM Distribution Family: Bernoulli 
+  e) Linear Predictor: $\eta$ = $\beta_1$(sex) + $\beta_2$(age) + $\beta_3$(GPA) + $\beta_4$(major) + $\beta_5$(prior_years_work_experience) + $\beta_6$(prior_income_levels)
+  f) Link Function: The link function is the logit because the response variable is binary - the probability of employment is equal to 1 - the probability of NOT getting employed. The logit function is: $log(\mu_i/1−\mu_i)=x_{i}^T\beta$.
+
+
+*Q1c) The number of mortgage loan defaults in a given year by different counties across the United States. For each household/borrower information on income, loan interest rate, age, debt, loan to value at origination are available.*
+
+  a) Response Variables: Default
+  b) Explanatory Variables: Income, Loan Interest Rate, Age, Debt, Loan to Value 
+  c) Variable Types: 
+      i) Nominal/Categorical: Default
+      ii) Continuous: Income (if income data type is INT ex. $100,000 not "High Income"), Loan Interest Rate, Age, Debt, Loan to Value
+  d) GLM Distribution Family: Bernoulli 
+  e) Linear Predictor: $\eta$ = $\beta_1$(income) + $\beta_2$(loan) + $\beta_3$(interest_rate) + $\beta_4$(age) + $\beta_5$(debt) + $\beta_6$(loan_to_value)
+  f) Link Function: The link function is the log function because the response variable is binary - the probability of defaulting is equal to 1 - the probability of NOT defaulting. 
+
+**Q2) Assume that the linear predictor, $x_{i}^T\beta$ takes the values between −3 and 3 equally spaced by 0.01. If the link function is the natural logarithm, $log(\mu_i)=x_{i}^T\beta$, then compute and plot the mean response, $\mu_i$, against the linear predictor, $x_{i}^T\beta$.**
+
+
+```{r}
+linPred_Q2 <- seq(from = -3, to = 3, by = 0.01)
+mu_Q2 <- exp(linPred_Q2)
+
+plot(linPred_Q2,mu_Q2, xlab = TeX('Linear Predictor: $\\x_i^T\\beta$'), ylab = TeX('Mean Response: $\\mu_i'), main = TeX("$\\mu_i$ Against $\\x_i^T\\beta$ (Link Function = Natural Log)"))
+
+```
+
+
+**Q3) Assume that the linear predictor, $x_{i}^T\beta$, takes the values between −5 and 5 equally spaced by 0.01. If the link function is logit, $log(\mu_i/1−\mu_i)= x_{i}^T\beta$, then compute and plot the mean response, $\mu_i$, against the linear predictor, $x_{i}^T\beta$.**
+
+```{r}
+linPred_Q3 <- seq(from = -5, to = 5, by = 0.01)
+mu_Q3 <- exp(linPred_Q3)/(1+exp(linPred_Q3))
+plot(linPred_Q3,mu_Q3, xlab = TeX('Linear Predictor: $\\x_i^T\\beta$'), ylab = TeX('Mean Response: $\\mu_i'), main = TeX("$\\mu_i$ Against $\\x_i^T\\beta$ (Link Function = Logit)"))
+
+```
+
+
+
+**Q4. Assume that the linear predictor, $x_{i}^T\beta$, takes the values between 0.5 and 5 equally spaced by 0.01. If the link function is negative inverse, $−\mu_i^-1=x_{i}^T\beta$, compute and plot the mean response, $\mu_i$, against the linear predictor, $x_{i}^T\beta$.**
+
+```{r}
+linPred_Q4 <- seq(from = 0.5, to = 5, by = 0.01)
+mu_Q4 <- -1/linPred_Q4
+plot(linPred_Q4,mu_Q4, xlab = TeX('Linear Predictor: $\\x_i^T\\beta$'), ylab = TeX('Mean Response: $\\mu_i'), main = TeX("$\\mu_i$ Against $\\x_i^T\\beta$ (Link Function = Negative Inverse)"), xlim =c(0,5))
+
+```
+
+
+
+

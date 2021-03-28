@@ -1,0 +1,377 @@
+---
+title: "31010 - Assignment 7"
+author: "Melanie Tran"
+date: "3/2/2021"
+output: html_document
+---
+
+
+**1) The data 'car ins claims.csv' contain the number of car insurance policies, n, and number of claims, y, by various insurance categories, CAR, age of policy holder, AGE, and district where the policy holder lived (DIST=1, for London and other major cities and DIST=0, otherwise). **
+```{r}
+car <- read.csv("car ins claims.csv", header = TRUE)
+head(car)
+```
+
+**1A) Calculate the rate of claims y/n for each category and plot the rates by AGE, CAR and DIST to get an idea of the main effects of these factors.**
+```{r}
+rate <- car$y/car$n
+car <- cbind(car,rate)
+car
+```
+
+Plot the graphs.
+```{r}
+par(mfrow=c(1, 3))
+plot(factor(car$CAR), car$rate, main="Car by Rate")
+plot(factor(car$AGE), car$rate, main="Age by Rate")
+plot(factor(car$DIST), car$rate, main="District by Rate")
+```
+
+
+**RESULTS:** Based on these plots, the claim rates seem to be increasing as CAR increases, decreasing as AGE decreases, and are higher when DIST = 1.
+
+**1B) Use Poisson regression to estimate the main effects (each treated as categorical and modelled using indicator variables) and interaction terms.**
+
+```{r}
+m1 <- glm(y~offset(log(n)) + 
+            factor(CAR) + 
+            factor(AGE) + 
+            factor(DIST) ,data=car,family=poisson(link = "log"))
+summary(m1)
+```
+
+**1C) Fit a Poisson regression model by treating CAR and AGE as continuous variables.**
+```{r}
+m2 <- glm(y~offset(log(n)) + CAR + AGE + factor(DIST),data=car,family=poisson(link = "log"))
+summary(m2)
+```
+**RESULTS:** The Poisson Regression GLM is consistent with the output from the graphs. Holding all other parameters constant, for one unit change in the number of claims (n), the difference in the logs of expected counts is expected to increase by 19.8% (CAR). Similarly, with one unit change in n, there will be a decrease by 17.7% (AGE) and increase by 21.9% for DIST1. 
+
+**2) The dataset 'Insurance.RData' in the R package MASS consists of the numbers of policyholders of an insurance company who were exposed to risk, and the numbers of car insurance claims made by those policyholders in the third quarter of 1973. Please visit (https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/Insurance.html) for variable descriptions.**
+
+- District - factor: district of residence of policyholder (1 to 4): 4 is major cities.
+
+- Group -  an ordered factor: group of car with levels <1 litre, 1–1.5 litre, 1.5–2 litre, >2 litre.
+
+- Age -  an ordered factor: the age of the insured in 4 groups labeled <25, 25–29, 30–35, >35.
+
+- Holders - numbers of policyholders (n)
+
+- Claims - numbers of claims (y)
+
+```{r}
+library(MASS)
+data("Insurance")
+Insurance
+```
+
+**A) Conduct an exploratory data analysis.**
+
+```{r}
+library("psych")
+describe(Insurance)
+```
+
+Calculate Counts
+```{r}
+## look at the counts of the data 
+lapply(Insurance[, c("District","Group","Age","Holders", "Claims")], table)
+```
+Check for NAs. 
+```{r}
+is.na(Insurance)
+```
+Calculate correlation.
+```{r}
+num_district <- as.numeric(Insurance$District) 
+num_group <- as.numeric(Insurance$Group) 
+num_age <- as.numeric(Insurance$Age) 
+num_holders <- as.numeric(Insurance$Holders)
+num_claims <- as.numeric(Insurance$Claims)
+
+corr_insur <- cbind(num_district,num_group,num_age,num_holders,num_claims)
+cor(corr_insur, method = "pearson")
+```
+**RESULTS:** There seems to be some correlation between Age and Holders (0.54) and between Age and Claims (0.55)
+
+Calculate insurance rate.
+```{r}
+#identify rate 
+insurance_rate = Insurance$Claims/Insurance$Holders
+
+#bind to the data table
+dta <- cbind(Insurance,insurance_rate)
+head(dta)
+```
+
+Plot data. 
+```{r}
+par(mfrow=c(1, 3))
+plot(dta$Group, dta$insurance_rate, main="Group Liters by Rate", xlab = "Group", ylab = "Insurance Rate")
+plot(dta$Age, dta$insurance_rate, main="Age by Rate", xlab = "Age", ylab = "Insurance Rate")
+plot(dta$District, dta$insurance_rate, main="District by Rate", xlab = "District", ylab = "Insurance Rate")
+```
+
+
+**RESULTS:** Based on the charts, the insurance rate increases as the number of liters increase - larger engines usually are able to burn more fuel and produce more power than a smaller one which could result in more accidents, thus more claims. The insurance rate declines as the age group increases - this could mean that older drivers might be safer drivers compared to younger drivers. Lastly, insurance rates are much higher in District 4.
+
+
+**B) Estimate the Poisson model with District, Group and Age as categorical variables. Do you spot any potential improvements to the model?**
+```{r}
+m3 <- glm(Claims ~offset(log(Holders)) + 
+            factor(District) + 
+            factor(Group) +
+            factor(Age),data=dta,family=poisson(link = "log"))
+summary(m3)
+```
+**RESULTS:** When fitting the predictors using as.numeric instead of factor (see below for num_m3), the model indicates that all three predictors are statistically significant. However, fitting the predictors as factors, we see that Districts 2 and 3,Group 1.5-2L and >2L, and Age 30-35 and >35 are not statistically significant as their p-value is > 0.05 - we can remove these from the model to improve the fit.
+
+```{r}
+num_m3 <- glm(Claims ~offset(log(Holders)) + 
+            as.numeric(Group) +
+            as.numeric(Age) + 
+            as.numeric(District),data=dta,family=poisson(link = "log"))
+summary(num_m3)
+```
+
+
+**c) Interpret at least two coefficients of the model in B)**
+
+- For number of Holders that reside in District 4, there is a 23% increase in number of claims filed, holding constant all other variables.
+
+- For number of Holders that are in Age for cubic levels, there is a 1.6% decrease in number of claims filed, holding constant all other variables.
+
+
+**3) The dataset 'medicare.RData' contains information on the number of visits to physicians by Medicare participants. It also contain information on each participant including:**
+- hospital stays (numHospStays)
+
+- self health status assessment (statusHealth)
+    
+- chronic conditions count (numChronic)
+    
+- gender
+    
+- years of education (numYearsEduc)
+    
+- private insurance (hasPrivIns)
+
+- numVisits (y)
+```{r}
+load("C:/Users/meltra02/Desktop/MSCA/Quarter 2/31010 - Linear Nonlinear/31010 - Assignment - 7/medicare.RData")
+head(medicare)
+```
+```{r}
+describe(medicare)
+```
+
+
+**A) Prepare box plots of the number of visits to physicians against each of the variables. You may place numerical explanatory variables into a category (e.g., 3+ years of education). Plot the histogram for the number of visits.**
+```{r}
+## create loop to categorize numHospStays
+n = length(medicare$numHospStays)
+catHosp = numeric(n)
+for (i in (1:n)) {
+        if (medicare$numHospStays[i] <= 4) {
+                catHosp[i] <-  "0-4"
+        } else {
+          catHosp[i] <-  "4-8"
+        }
+                       
+}
+
+## create loop to categorize numChronic
+n = length(medicare$numChronic)
+catChronic = numeric(n)
+for (i in (1:n)) {
+        if (medicare$numChronic[i] <= 4) {
+                catChronic[i] <-  "0-4"
+        } else {
+          catChronic[i] <-  "4-8"
+        }
+                       
+}
+
+## create loop to categorize years of education
+n = length(medicare$numYearsEduc)
+catEdu = numeric(n)
+for (i in (1:n)) {
+        if (medicare$numYearsEduc[i] <= 3) {
+                catEdu[i] <-  "0-3"
+        } else if (medicare$numYearsEduc[i] <= 6) {
+                catEdu[i] <-  "4-6"
+        } else {
+          catEdu[i] <-  "6+"
+        }
+                       
+}
+
+```
+
+
+
+```{r}
+# view counts by education category
+table(unlist(catEdu))
+
+# view counts by hospital visits category
+table(unlist(catHosp))
+
+# view counts by chronic conditions category
+table(unlist(catChronic))
+```
+
+```{r}
+# add categorical Hosp, Chronic, Edu back to medicare data frame
+
+medicare <- cbind(medicare, catHosp, catChronic, catEdu)
+head(medicare)
+```
+
+Plot graphs with Medicare predictors as given and factor(Years of Education).
+```{r}
+par(mfrow=c(2, 3))
+plot(factor(medicare$numHospStays), medicare$numVisits, main="#Hospital Stays by Visits", xlab = "# Hospital Stays", ylab = "# Visits")
+plot(medicare$statusHealth, medicare$numVisits, main="Status Health by Visits", xlab = "Status Health", ylab = "# of Visits")
+plot(factor(medicare$numChronic), medicare$numVisits, main="# Chronic Conditions by Visits", xlab = "# Chronic Conditions", ylab = "# of Visits")
+plot(medicare$gender, medicare$numVisits, main="Gender by Visits", xlab = "Gender", ylab = "# of Visits")
+plot(medicare$hasPrivIns, medicare$numVisits, main="Private Insurance by Visits", xlab = "Has Private Insurance", ylab = "# of Visits")
+plot(factor(medicare$catEdu), medicare$numVisits, main="# Years of Education by Visits", xlab = "# Years Education", ylab = "# of Visits")
+```
+
+Plot the graphs will all predictors as factors.
+```{r}
+par(mfrow=c(2, 3))
+plot(factor(medicare$catHosp), medicare$numVisits, main="#Hospital Stays by Visits", xlab = "# Hospital Stays", ylab = "# Visits")
+plot(medicare$statusHealth, medicare$numVisits, main="Status Health by Visits", xlab = "Status Health", ylab = "# of Visits")
+plot(factor(medicare$catChronic), medicare$numVisits, main="# Chronic Conditions by Visits", xlab = "# Chronic Conditions", ylab = "# of Visits")
+plot(medicare$gender, medicare$numVisits, main="Gender by Visits", xlab = "Gender", ylab = "# of Visits")
+plot(medicare$hasPrivIns, medicare$numVisits, main="Private Insurance by Visits", xlab = "Has Private Insurance", ylab = "# of Visits")
+plot(factor(medicare$catEdu), medicare$numVisits, main="# Years of Education by Visits", xlab = "# Years Education", ylab = "# of Visits")
+```
+
+
+Plot the histogram for the number of visits.
+```{r}
+hist(medicare$numVisits,main = "Distribution of # Visits", xlab = "# Visits")
+```
+
+
+**B) Run a Poisson regression with the explanatory variables listed above.**
+```{r}
+modMediPois <- glm(numVisits ~ numHospStays + 
+            statusHealth +
+            numChronic +
+            gender + 
+            catEdu + #factored EDU
+            hasPrivIns,data=medicare,family=poisson(link = "log"))
+summary(modMediPois)
+```
+
+**C) Run the quasi-Poisson regression with the explanatory variables listed above. Do you see any evidence of over-dispersion? Explain. Would your assessment of the significance of each variable change from the model in item B)? Explain.**
+
+```{r}
+modMediQP <- glm(numVisits ~ numHospStays + 
+            statusHealth +
+            numChronic +
+            gender + 
+            catEdu + 
+            hasPrivIns,data=medicare,family=quasipoisson(link = "log"))
+summary(modMediQP)
+```
+Calculating over-dispersion by hand. 
+```{r}
+dpQP <- sum(residuals(modMediQP,type="pearson")^2)/modMediQP$df.res
+dpQP
+```
+
+**RESULTS:** Based on the model results and calculating dispersion by hand, yes there is over-dispersion at approximately 5.973.
+
+Calculate the variance and mean of each predictor.
+```{r}
+print("Hospital Stays")
+with(medicare, tapply(numVisits, numHospStays, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+print("Status Health")
+with(medicare, tapply(numVisits, statusHealth, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+print("Gender")
+with(medicare, tapply(numVisits, gender, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+print("Chronic Conditions")
+with(medicare, tapply(numVisits, numChronic, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+print("Years of Education")
+with(medicare, tapply(numVisits, numYearsEduc, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+print("Private Insurance")
+with(medicare, tapply(numVisits, hasPrivIns, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+
+```
+
+**RESULTS:** Over-dispersion is caused when the variance is larger than the mean for a Poisson distribution. When calculating the mean and variance for each predictor, we can see that there are some instances where the predictor's variance is larger than the predictor's mean. For example: 
+
+- Hospital Visits #5 has a variance of 28 and a mean of 17.30
+
+- Status Health (Excellent) has a variance of 5.12 and a mean of 4.51
+
+- Gender (Male) has a variance of 7.19 and a mean of 6.65
+
+- Chronic Conditions (0) has a variance of 5.35 and a mean of 4.79
+
+- Years of Education (3) has a variance of 7.76 and a mean of 7.64
+
+- Years of Education (5) has a variance of 8.33 and a mean of 7.54
+
+- Years of Education (10) has a variance of 7.38 and a mean of 6.64
+
+- Years of Education (12) has a variance of 7.23 and a mean of 6.86
+
+- Years of Education (16) has a variance of 8.75 and a mean of 6.95
+
+Given these results, I would reevaluate these predictors when fitting the model. 
+
+**D) Run the negative binomial regression with the explanatory variables listed above. Do you see any evidence of over-dispersion? Explain. Would your assessment of the significance of each variable change from the model in item C)? Explain.**
+
+```{r, message = FALSE}
+require(foreign)
+require(ggplot2)
+require(MASS)
+```
+
+```{r}
+nbMod1 <- glm.nb(numVisits ~ numHospStays + 
+            statusHealth +
+            numChronic +
+            gender + 
+            catEdu + 
+            hasPrivIns,data=medicare)
+
+summary(nbMod1)
+```
+
+**RESULTS:** The Years of Education category of 4-6 years and 6+ years are not statistically significant similarly when we run the quasi-poisson model. However, since the variance is greater than the mean for some cases of our predictors, the negative binomial has an additional parameter that can adjust the variance independently of the mean which is useful when there is overdispersion. As we can see in the dispersion parameter for Negative Binomial, it has decreased to 2.1638.
+
+
+Analyze the confidence intervals for the predictor estimates. 
+```{r}
+(est <- cbind(Estimate = coef(nbMod1), confint(nbMod1)))
+```
+
+Calculate the incident rate ratios by exponentiating our model coefficients. 
+```{r}
+exp(est)
+```
+
