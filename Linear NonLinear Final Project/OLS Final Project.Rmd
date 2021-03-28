@@ -1,0 +1,625 @@
+---
+title: "Food Inspection: Modeling Risk Assignment using Ordinal Logistic Regression"
+author: "Final Project Team: Christopher Hein, Yuming Liao, Andrew McCurdy, Nina Randorf, Melanie Tran"  
+date: "3/15/2021"
+output: html_document
+---
+
+
+**Project Description**
+Building an Ordinal Logistic Regression (OLR) model, this project seeks to determine what factors influence risk assignment (Low/Med/High) for restaurants which passed their inspections. This document explores City of Chicago Food Inspections data from July 1, 2018 to February 19, 2021. This script loads data from "cleanedInspection.csv", a cleaned version of the Food Inspection data.  
+
+The raw Chicago Food Inspections data can also be downloaded directly from:   
+https://data.cityofchicago.org/Health-Human-Services/Food-Inspections-7-1-2018-Present/qizy-d2wf/data
+
+The food inspection checklist describing inspection focus areas can be viewed at:  
+https://www.chicago.gov/city/en/depts/cdph/provdrs/healthy_restaurants/svcs/understand_healthcoderequirementsforfoodestablishments.html  
+
+The five main parts of this document include:  
+  I. Initial Data Exploration  
+  II. Model Building  
+  III. Model Testing  
+  IV. Interpretation & Results  
+  V. Additional Insight  
+  
+
+#### I. INITIAL DATA EXPLORATION  
+
+We begin initial data exploration with loading and viewing the "cleanedInspection.csv" data.  We can remove the excess index column and any columns which have less than 1 factor as these will causes errors during the model building and testing phase.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2) #Jitter Plots
+library(reshape2)
+library(MASS) #includes polr function for OLS build
+library(regclass)#VIF Test
+library(brant) #brantTest
+library(effects) #use for focal point plots
+library(car) #poTest
+library(caret) #use for train-test
+library(UBL) #use for train-test resampling
+```
+
+Loading the data, we can view all 24 categorical variables in the dataset.  "Risk" is the ordinal response variable (clear ordered categories of "Low", "Med", and "High").  "Inspection.Date" represents the season of the inspection (Spring, Summer, Fall, Winter). All other categories, such as "Supervision" and "EmployeeHealth" represent different health inspection focus areas; this data represents whether a restaurant passed or incurred a "hit" (violation) of a health code in that category.
+
+Of the 24 independent variables, we can drop "Facility.Type" and "Inspection.Type" due to scoping limitations.  While data is available on multiple types of facilities (restaurants, gas stations, schools) and inspections (licensing, re-inspections, complaints), this model and analysis focuses only on Restaurant and Canvass inspections. As the data was already cleaned and filtered for Restaurants and Canvass Inspections, we can drop these two columns as constants.  This leaves the dataset with one response and 22 independent variables. 
+```{r}
+#don't need this line if your file is saved in the same directory folder
+#dataPath <- setwd()
+
+#load cleaned data
+dta <- read.csv("cleanedInspection.csv")
+
+#inspecting the dta table, we still need to remove a few extra columns
+dta$X <- NULL #remove index extra column
+dta$Facility.Type <- NULL #this is a constant due to scope limits
+dta$Inspection.Type <- NULL #this is a constant due to scope limits
+
+#view head
+head(dta)
+```
+
+With the data loaded, we can now convert data types to factor and specify specific ordering. For instance, "Risk" must be ordered to reflect "Low", "Med", and "High. We can order all dependent variables as well (i.e. "Pass" is better than a "Hit") except "Inspection.Date" as seasons have no intrinsic order value.    
+
+Reference Source:  Perceptive Analytics.  How to Perform Ordinal Logistic Regression in R.  R-bloggers, 18 June 2019, r-bloggers.com/2019/06/how-to-perform-ordinal-logistic-regression-in-r/.
+```{r}
+#converting to factor and explicitly defining the ordering levels for all features except Inspection.Date (seasons)
+
+#response
+dta$Risk <- factor(dta$Risk, levels = c("Low", "Med", "High"), ordered = T)
+
+#predictors 
+dta$Inspection.Date <- factor(dta$Inspection.Date, levels = c("Fall", "Winter", "Spring", "Summer"), ordered = F)
+
+dta$Supervision <- factor(dta$Supervision, levels = c("0","1"), ordered = T)
+dta$EmployeeHealth <- factor(dta$EmployeeHealth, levels = c("0","1"), ordered = T)
+dta$HygenicPractices <- factor(dta$HygenicPractices, levels = c("0","1"), ordered = T)
+
+dta$HandContamination <- factor(dta$HandContamination, levels = c("0","1"), ordered = T)
+dta$ApprovedSource <- factor(dta$ApprovedSource, levels = c("0","1"), ordered = T)
+dta$Contamination <- factor(dta$Contamination, levels = c("0","1"), ordered = T)
+
+dta$TimeTemp <- factor(dta$TimeTemp, levels = c("0","1"), ordered = T)
+dta$ConsumerAdvisory <- factor(dta$ConsumerAdvisory, levels = c("0","1"), ordered = T)
+dta$SusceptiblePop <- factor(dta$SusceptiblePop, levels = c("0","1"), ordered = T)
+
+dta$AdditiveSafety <- factor(dta$AdditiveSafety, levels = c("0","1"), ordered = T)
+dta$ApprovedProcedures <- factor(dta$ApprovedProcedures, levels = c("0","1"), ordered = T)
+dta$SafeFood <- factor(dta$SafeFood, levels = c("0","1"), ordered = T)
+
+dta$FoodTemperature <- factor(dta$FoodTemperature, levels = c("0","1"), ordered = T)
+dta$FoodIdentification <- factor(dta$FoodIdentification, levels = c("0","1"), ordered = T)
+dta$FoodContamination <- factor(dta$FoodContamination, levels = c("0","1"), ordered = T)
+
+dta$ProperUtensils <- factor(dta$ProperUtensils, levels = c("0","1"), ordered = T)
+dta$Equipment <- factor(dta$Equipment, levels = c("0","1"), ordered = T)
+dta$PhysicalFacilities <- factor(dta$PhysicalFacilities, levels = c("0","1"), ordered = T)
+
+dta$EmployeeTraining <- factor(dta$EmployeeTraining, levels = c("0","1"), ordered = T)
+dta$OrdinanceCompliance <- factor(dta$OrdinanceCompliance, levels = c("0","1"), ordered = T)
+
+
+#convert "0","1" to "Pass" or "Hit" to make the feature easier to interpret
+levels(dta$Supervision)[levels(dta$Supervision)=="0"] <-"Pass"
+levels(dta$Supervision)[levels(dta$Supervision)=="1"] <-"Hit"
+
+levels(dta$EmployeeHealth)[levels(dta$EmployeeHealth)=="0"] <-"Pass"
+levels(dta$EmployeeHealth)[levels(dta$EmployeeHealth)=="1"] <-"Hit"
+
+levels(dta$HygenicPractices)[levels(dta$HygenicPractices)=="0"] <-"Pass"
+levels(dta$HygenicPractices)[levels(dta$HygenicPractices)=="1"] <-"Hit"
+
+levels(dta$HandContamination)[levels(dta$HandContamination)=="0"] <-"Pass"
+levels(dta$HandContamination)[levels(dta$HandContamination)=="1"] <-"Hit"
+
+levels(dta$ApprovedSource)[levels(dta$ApprovedSource)=="0"] <-"Pass"
+levels(dta$ApprovedSource)[levels(dta$ApprovedSource)=="1"] <-"Hit"
+
+levels(dta$Contamination)[levels(dta$Contamination)=="0"] <-"Pass"
+levels(dta$Contamination)[levels(dta$Contamination)=="1"] <-"Hit"
+
+levels(dta$TimeTemp)[levels(dta$TimeTemp)=="0"] <-"Pass"
+levels(dta$TimeTemp)[levels(dta$TimeTemp)=="1"] <-"Hit"
+
+levels(dta$ConsumerAdvisory)[levels(dta$ConsumerAdvisory)=="0"] <-"Pass"
+levels(dta$ConsumerAdvisory)[levels(dta$ConsumerAdvisory)=="1"] <-"Hit"
+
+levels(dta$SusceptiblePop)[levels(dta$SusceptiblePop)=="0"] <-"Pass"
+levels(dta$SusceptiblePop)[levels(dta$SusceptiblePop)=="1"] <-"Hit"
+
+levels(dta$AdditiveSafety)[levels(dta$AdditiveSafety)=="0"] <-"Pass"
+levels(dta$AdditiveSafety)[levels(dta$AdditiveSafety)=="1"] <-"Hit"
+
+levels(dta$ApprovedProcedures)[levels(dta$ApprovedProcedures)=="0"] <-"Pass"
+levels(dta$ApprovedProcedures)[levels(dta$ApprovedProcedures)=="1"] <-"Hit"
+
+levels(dta$SafeFood)[levels(dta$SafeFood)=="0"] <-"Pass"
+levels(dta$SafeFood)[levels(dta$SafeFood)=="1"] <-"Hit"
+
+levels(dta$FoodTemperature)[levels(dta$FoodTemperature)=="0"] <-"Pass"
+levels(dta$FoodTemperature)[levels(dta$FoodTemperature)=="1"] <-"Hit"
+
+levels(dta$FoodIdentification)[levels(dta$FoodIdentification)=="0"] <-"Pass"
+levels(dta$FoodIdentification)[levels(dta$FoodIdentification)=="1"] <-"Hit"
+
+levels(dta$FoodContamination)[levels(dta$FoodContamination)=="0"] <-"Pass"
+levels(dta$FoodContamination)[levels(dta$FoodContamination)=="1"] <-"Hit"
+
+levels(dta$ProperUtensils)[levels(dta$ProperUtensils)=="0"] <-"Pass"
+levels(dta$ProperUtensils)[levels(dta$ProperUtensils)=="1"] <-"Hit"
+
+levels(dta$Equipment)[levels(dta$Equipment)=="0"] <-"Pass"
+levels(dta$Equipment)[levels(dta$Equipment)=="1"] <-"Hit"
+
+levels(dta$PhysicalFacilities)[levels(dta$PhysicalFacilities)=="0"] <-"Pass"
+levels(dta$PhysicalFacilities)[levels(dta$PhysicalFacilities)=="1"] <-"Hit"
+
+levels(dta$EmployeeTraining)[levels(dta$EmployeeTraining)=="0"] <-"Pass"
+levels(dta$EmployeeTraining)[levels(dta$EmployeeTraining)=="1"] <-"Hit"
+
+levels(dta$OrdinanceCompliance)[levels(dta$OrdinanceCompliance)=="0"] <-"Pass"
+levels(dta$OrdinanceCompliance)[levels(dta$OrdinanceCompliance)=="1"] <-"Hit"
+```
+
+Looking at the data summary, we can see a count of all the categorical variables.  The ordinal response, Risk, is imbalanced, with approximately 83% High, 16.75% Med, 0.19% Low assignments.  
+
+Noting this imbalance, we will have to address a couple points for model building and testing: 
+
+1)  The Brant test (a test for proportional odds, a required assumption of OLR) can only be applied to factors with more than 1 level.  We must remove "SafeFood" and "SusceptiblePop" as these features have no "Hits" (i.e. no recorded restaurant inspection included a violation within those two categories). Trying to maintain as many features as possible, our data now includes 1 response and 20 independent variables.  
+
+2) An imbalanced dataset can skew a model during a train-test split.  We must inspect which variables can be reasonably included in a train-test split (i.e. consider removing "outlier" variables which only include rare violations).  We will also inspect a resampling method to see how different train-test splits affect model performance in the model testing section. 
+
+```{r}
+#summarize data
+summary(dta) 
+```
+```{r}
+#remove categories which had not "Hits" for compatibility with the proportional odds test
+dta$SafeFood <- NULL 
+dta$SusceptiblePop <- NULL
+summary(dta)
+
+```
+To find outliers and determine which variables could be reasonably included in a train-test split, we can calculate the "hit" percentage of all features. We can consider any variable with less than 5% hits to be an outlier and excluded in this analysis (5% hits = out of 100 inspections, 5 documents documented violations in a specific health category).  
+
+Removing these outliers leaves us with a smaller data subset consisting of one response and 10 independent variables. 
+
+```{r}
+#get column names of the dataframe which represents the features in the analysis
+col_names <- colnames(dta)
+
+#calculate percentage hits (proportion of times an inspection recorded a "hit")
+percentage_hits <- c()
+for (i in col_names){
+  percentage_hits<- c(percentage_hits, print(as.numeric(table(dta[i])[2])/2614))
+}
+
+#create percentage hit matrix
+p_h <- as.data.frame(percentage_hits, col_names)
+p_h$index <-(row.names(p_h))
+
+#compute percentage of hits per variable, if it's over 5% then add to a passing column (cpass)
+cpass <- c()
+for (i in seq(1,length(p_h$percentage_hits))){
+  #large enough sample size to include variable (at least 5%)
+  if(p_h$percentage_hits[i] >= 0.05){
+    cpass <- c(cpass, p_h$index[i])
+  }
+}
+
+#we have 11 variables which have at least 5% of their data has health checklist violation hits, one is the response, so we really have 10 explanatory variables
+length(cpass)
+
+#the 10 explanatory variables of interest
+cpass
+
+#create a dta subset which will be used for analysis and model building
+dta_mini <- dta[cpass] 
+head(dta_mini)
+
+```
+As part of the initial data exploration, we can inspect the frequency tables of the remaining 10 independent (explanatory) variables.  
+```{r}
+#frequency tables and jitter pots (jitter plots are the visual representation of frequency tables)
+
+#Inspection.Date
+table(dta_mini$Risk, dta$Inspection.Date)
+
+#Hand Contamination
+table(dta$Risk, dta$HandContamination)
+
+#Contamination
+table(dta$Risk, dta$Contamination)
+
+#Food Temperature
+table(dta$Risk, dta$FoodTemperature)
+
+#Identification
+table(dta$Risk, dta$FoodIdentification)
+
+#FoodContamination
+table(dta$Risk, dta$FoodContamination)
+
+#ProperUtensils
+table(dta$Risk, dta$ProperUtensils)
+
+#Equipment
+table(dta$Risk, dta$Equipment)
+
+#Physical Facilities
+table(dta$Risk, dta$PhysicalFacilities)
+
+#Employee Training
+table(dta$Risk, dta$EmployeeTraining)
+
+```
+
+
+Jitter plots are the visual representation of the frequency tables. 
+```{r}
+
+#Inspection.Date
+qplot(Inspection.Date, Risk, data=dta, geom="jitter",main="Risk Level by Inspection Season",xlab="Inspection Season", ylab="Risk Level")
+
+#Hand Contamination
+qplot(factor(HandContamination), Risk, data=dta, geom="jitter", main="Risk Level by Hand Contamination",xlab="Hand Contamination", ylab="Risk Level")
+
+#Contamination
+qplot(factor(Contamination), Risk, data=dta, geom="jitter", main="Risk Level by Contamination",xlab="Contamination", ylab="Risk Level")
+
+#Food Temperature
+qplot(factor(FoodTemperature), Risk, data=dta, geom="jitter", main="Risk Level by FoodTemperature",xlab="FoodTemperature", ylab="Risk Level")
+
+#Identification
+qplot(factor(FoodIdentification), Risk, data=dta, geom="jitter", main="Risk Level by FoodIdentification",xlab="FoodIdentification", ylab="Risk Level")
+
+#FoodContamination
+qplot(factor(FoodContamination), Risk, data=dta, geom="jitter", main="Risk Level by FoodContamination",xlab="FoodContamination", ylab="Risk Level")
+
+#ProperUtensils
+qplot(factor(ProperUtensils), Risk, data=dta, geom="jitter", main="Risk Level by ProperUtensils",xlab="ProperUtensils", ylab="Risk Level")
+
+#Equipment
+qplot(factor(Equipment), Risk, data=dta, geom="jitter", main="Risk Level by Equipment",xlab="Equipment", ylab="Risk Level")
+
+#Physical Facilities
+qplot(factor(PhysicalFacilities), Risk, data=dta, geom="jitter", main="Risk Level by Physical Facilities",xlab="Physical Facilities", ylab="Risk Level")
+
+#Employee Training
+qplot(factor(EmployeeTraining), Risk, data=dta, geom="jitter", main="Risk Level by EmployeeTraining",xlab="EmployeeTraining", ylab="Risk Level")
+```
+
+We can even visualize the frequency plots by season as part of our continued initial data exploration. 
+```{r}
+# HandContamination & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(HandContamination), y = factor(Risk)), xlab = "HandContamination", ylab = "Risk Levels") +
+  xlab("HandContamination") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# Contamination & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(Contamination), y = factor(Risk)), xlab = "Contamination", ylab = "Risk Levels") +
+  xlab("Contamination") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# FoodTemperature & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(FoodTemperature), y = factor(Risk)), xlab = "FoodTemperature", ylab = "Risk Levels") +
+  xlab("FoodTemperature") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# FoodIdentification & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(FoodIdentification), y = factor(Risk)), xlab = "FoodIdentification", ylab = "Risk Levels") +
+  xlab("FoodIdentification") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# FoodContamination & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(FoodContamination), y = factor(Risk)), xlab = "FoodContamination", ylab = "Risk Levels") +
+  xlab("FoodContamination") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+#ProperUtensils & Inspection.Date
+ggplot(dta_mini, aes(x = factor(ProperUtensils), y = factor(Risk)), xlab = "ProperUtensils", ylab = "Risk Levels") +
+  xlab("ProperUtensils") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# Equipment & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(Equipment), y = factor(Risk)), xlab = "Equipment", ylab = "Risk Levels") +
+  xlab("Equipment") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# PhysicalFacilities & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(PhysicalFacilities), y = factor(Risk)), xlab = "PhysicalFacilities", ylab = "Risk Levels") +
+  xlab("PhysicalFacilities") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+# EmployeeTraining & Inspection.Date 
+ggplot(dta_mini, aes(x = factor(EmployeeTraining), y = factor(Risk)), xlab = "EmployeeTraining", ylab = "Risk Levels") +
+  xlab("EmployeeTraining") + ylab("Risk Level") + 
+  geom_jitter(alpha = .5) +
+  facet_grid(~ Inspection.Date, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+```
+
+### II. MODEL BUILDING
+
+Using our selected features, we can build an OLR model.  We will also test our model to see if it meets four key model assumptions:  
+
+1. Ordered response variable (yes, Risk is "Low" < "Med" < "High")  
+2. Explanatory variables are count, continuous, or categorical (Yes)  
+3. Multi-collinearity does not exist, use Variance Inflation Factor (VIF) test  
+4. Proportional Odds Assumption holds, use Brant and PoTest  
+
+Build and testing with our selected features:  
+```{r}
+#build OLR model with selected features
+#Inspection.DateFall drops off and is absorbed into the intercept due to some linear combination of features, this is acceptable as season is less of interest than one of the 9 health code inspection areas
+m_mini <- polr(Risk ~., dta_mini, Hess=T)
+summary(m_mini) 
+
+#passes multicolineraity assumption - a model generally passes VIF test if VIF value is less than 5; VIF > 5 indicates multi-collinearity exists 
+numRisk <- as.numeric(dta$Risk)
+VIFfit <- lm(scale(numRisk) ~ ., data = dta_mini)
+VIF(VIFfit)
+
+#passes both proportional odds assumption tests - model must not have a statitically significant factor (min threshold is 0.01)
+brant(m_mini) #brant test can only be test with factors with 2 or more levels
+poTest(m_mini)
+
+```
+For comparison, we can build an OLR model using all original data with at least 1 feature. We can note that EmployeeHealth and AdditiveSafety features fail the proportional odds test.  Given these two features made up less than 0.5% of the dataset, we can move forward with our previous feature selections of 10 explanatory variables. 
+```{r}
+#build OLR model with original features with at least 1 level
+m <- polr(Risk ~., dta, Hess=T)
+summary(m) #AIC = 2342.509, residual deviance = 2296.509
+
+#multicolineraity assumption, passes
+numRisk_m <- as.numeric(dta$Risk)
+VIFfit_m <- lm(scale(numRisk_m) ~ ., data = dta)
+VIF(VIFfit_m)
+
+#proportional odds assumption tests
+brant(m) #EmployeeHealth right at 0.01 mark, AdditiveSafety Fails
+poTest(m) #EmployeeHealth and AdditiveSaftety Fails 
+
+#examining the two features which failed the proportional odds test more closely, they make up less than 0.5% of the dataset. 
+p_h["EmployeeHealth",]
+p_h["AdditiveSafety",]
+
+#compare two models
+#model 1 is the mini model and the Pr(Chi) test indicates the difference of these models are not statistically significantly. 
+anova(m,m_mini)
+```
+### III. MODEL TESTING (ASSESSING MODEL PERFORMANCE)
+Now that we know our model passes OLR model assumptions, we can conduct model testing using a 60-40 train-test split. 
+
+We already filtered features that were too small, but still need to be careful because our data is imbalanced. We will test a resampling method after the data is split into training and test sets.
+
+Reference Source: Shirin's plygRound. Dealing with unbalanced data in machine learning, 01 April 2017, r-bloggers.com/2017/04/dealing-with-unbalanced-data-in-machine-learning/
+
+```{r}
+#train-test split on selected features (dta_mini dataset)
+set.seed(100)
+samplesize = 0.60*nrow(dta_mini)
+index = sample(seq_len(nrow(dta_mini)), size = samplesize)
+
+#Creating training and test set 
+datatrain = dta_mini[index,] #1568 inspections
+datatest = dta_mini[-index,] #1046 inspections
+
+#inspection train and test sets
+summary(datatrain)
+summary(datatest)
+```
+Now we can create a model using train data and confirm it still passes the multi-colinearity and proportional odds assumptions.  
+```{r}
+#build model from train data
+#Inspection.DateFall falls off and is absorbed into the intercept again, but that is acceptable for the scope of this analysis. We are more interested in the impact of the health code inspection features. 
+m_mini_train <- polr(Risk ~., data = datatrain, Hess = T)
+
+#testing multicolinearity, passes (no values > 5)
+numRisk_train <- as.numeric(datatrain$Risk)
+VIFfit_train <- lm(scale(numRisk_train) ~ ., data = datatrain)
+VIF(VIFfit_train)
+
+#testing proportional odds assumption, passes (no probability < 0.05 or 0.01)
+brant(m_mini_train) 
+poTest(m_mini_train) 
+
+```
+With a training model built, we can examine the model performance within the training set. Examining the frequency table, this model has an 83.4% accuracy. 
+```{r}
+#generating prediction using model built from train data set against the true Risk response recorded in the train dataset
+pred1 <- predict(m_mini_train, datatrain)
+
+#view frequency table
+table(datatrain$Risk, pred1) 
+
+#model test accuracy  
+sum(diag(table(datatrain$Risk, pred1)  ))/sum(table(datatrain$Risk, pred1)  )
+```
+Testing the model performance against the test set, the model has an 82% accuracy.
+```{r}
+#generating prediction using model built from train set and the test set
+pred_test <- predict(m_mini_train, datatest)
+
+#view frequency table
+table(datatest$Risk, pred_test)
+
+#model test accuracy  
+sum(diag(table(datatest$Risk, pred_test)))/sum(table(datatest$Risk, pred_test))
+
+```
+Testing the model against the full dta_mini data set, the model has an 83% accuracy
+```{r}
+#generating prediction using model built from train set and the full dta_mini data set
+pred_dta_mini <- predict(m_mini_train, dta_mini)
+
+#view frequency table
+table(dta_mini$Risk, pred_dta_mini) 
+
+#model test accuracy  
+sum(diag(table(dta_mini$Risk, pred_dta_mini)))/sum(table(dta_mini$Risk, pred_dta_mini))
+```
+
+While an 82% accuracy is relatively high, we can see the model is only predicting "High" because of the underlying imbalance in the dataset. While we are building this model to explore what features affected ordinal "Risk" assignment - not to predict future "Risk" assignments with greater accuracy -- we can still examine the effect of resampling methods on the model performance. 
+
+In the code below, we examine random oversampling where duplicates are randomly selected from the minority class (any Risk factor other than "High").  The overall model accuracy actually drops so our OLR model works best by just predicting "High" Risk factors for all inspections; this is because "Med" and "Low" assignments are less frequent. 
+
+Given the drop in accuracy with resampling, we will continue to use our “m_mini” model in upcoming analysis. The “m_mini” OLR model had an 82% accuracy compared to the oversampled model which had a 49% accuracy.
+
+```{r}
+#This function performs a random over-sampling strategy for imbalanced multiclass problems, creating a new dataset sample
+new.dat <- RandOverClassif(Risk ~ ., datatrain, "balance")
+
+#create new model from new data set
+m_resample <- polr(Risk ~ ., new.dat)
+
+#creating predictions based on test set
+random.oversample.pred <- predict(m_resample, datatest, type = "class")
+
+#recall the original confusion matrix using the dta_mini_train model and test set
+table(datatest$Risk, pred_test)
+
+#confusion matrix after random oversampling
+oversample.table = table(datatest$Risk, random.oversample.pred) 
+oversample.table
+
+#viewing accuracy and confusion matrix summary after random oversampling
+sum(diag(oversample.table))/sum(oversample.table)
+confusionMatrix(oversample.table)
+```
+
+### IV. MODEL INTERPRETATION AND RESULTS
+One way to interpret the OLR model is by examining the p-values.  Calculating p-values for each parameter from the m_mini model, we find the all features except Contamination, FoodContamination, Equipment, and PhysicalFacilities are significant at the 0.05 significance level. 
+
+And we can note the following features are significant at the 0.01 level:  
+- Inspection.DateSpring  
+- Inspection.DateSummer  
+- FoodTemperature   
+- ProperUtensils   
+- EmployeeTraining  
+
+```{r}
+# store the coefficient table
+ctable <- round(coef(summary(m_mini)), 4)
+
+# calculate and store p-values
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = F) * 2
+
+# combine coefficient table and p-values table
+(ctable <- cbind(ctable, "p value" = round(p, 4)))
+```
+
+The coefficients of the model can be difficult to interpret because they are on a log scale. We can convert the coefficients into odds ratios and calculate 95% confidence intervals for easier interpretation.   
+
+Reference Source: UCLA: Stiatistical Consulting Group. Ordinal Logistic Regression | R Data Analysis Examples, stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+```{r}
+# computed confidence intervals (CIs_), rounded to 4 digits
+ci <- round(confint(m_mini), 4)
+
+# log odd coefficients
+or <- round(coef(m_mini), 4)
+
+# convert coefficients into odds ratio, combine with CIs
+#note: if CI doesn't cross 0 parameter, the param is statistically significant and we can see the four parameters that do cross are the same as the parameters found not to be significant in at the 0.05 level in the ctable above (Contamination, FoodContamination, Equipment, and PhysicalFacilities)
+round(exp(cbind(OR = or, ci)), 4)
+
+```
+**Interpretation of the odds ratio:**   
+
+- For restaurants with Inspection Dates in Winter, the odds of getting a higher level risk inspection rating (ex. Med or High vs Low) is 1.46 times that of restaurants who get Inspections in other seasons, holding constant all other variables.  
+
+- For restaurants with Inspection Dates in Spring, the odds of getting a higher level risk inspection rating (ex. Med or High vs Low) is 0.66 times that of restaurants who get Inspections in other seasons, holding constant all other variables.  
+
+- For restaurants with Inspection Dates in Summer, the odds of getting a higher level risk inspection rating (ex. Med or High vs Low) is 0.54 times that of restaurants who get Inspections in other seasons, holding constant all other variables.  
+
+- For restaurants with Hand Contamination violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.31 times that of restaurants who did not get Hand Contamination violations, holding constant all other variables.   
+
+- For restaurants with Contamination violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.23 times that of restaurants who did not get Contamination violations, holding constant all other variables.  
+
+- For restaurants with Food Temperature violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 0.65 times that of restaurants who did not get Food Temperature violations, holding constant all other variables.   
+
+- For restaurants with Food Identification violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.33 times that of restaurants who did not get Food Identification violations, holding constant all other variables.  
+ 
+- For restaurants with Food Contamination violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.11 times that of restaurants who did not get Food Contamination violations, holding constant all other variables.  
+
+- For restaurants with Proper Utensils violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.69 times that of restaurants who did not get Proper Utensils violations, holding constant all other variables.  
+
+- For restaurants with Equipment violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.11 times that of restaurants who did not get  Equipment violations, holding constant all other variables.  
+
+- For restaurants with Physical Facilities violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 1.06 times that of restaurants who did not get  Physical Facilities violations, holding constant all other variables.  
+
+- For restaurants with Employee Training violations, the odds of getting a higher risk level inspection rating (ex. Med or High Risk versus Low) is 2.11 times that of restaurants who did not get Employee violations, holding constant all other variables. 
+
+
+**Key takeaways:**  
+
+- Inspections in winter and violations in hand contamination, food identification, proper utensils, and employee training increased the odds of higher risk assignment.  
+
+- Inspections in the Spring or Summer reduced the odds of higher risk assignment.  
+
+**Key takeaway interpretation:**  
+
+- Inspection date impacts the odds of risk assignment. Odds of risk assignment might increase in winter because restaurants are more likely to lose power (impacting the facility’s ability to maintain health code standards).  Restaurants may also be more prepared for inspections in spring and summer as those are traditional busy seasons.  
+
+- The log odds of food temperature violations is also less than zero, but this might be tied to less frequent power outages outside of winter months (freezers maintain temperatures more reliably).  
+
+
+### v. ADDITIONAL INSIGHT  
+With a model established, we can examine the effects of an independent variable on the response assignment probabilities.  It is also possible to look at joint effect of multiple independent variable. 
+
+Plotting effects using the library "effects" shows the change in probability of risk assignment based on individual feature levels ("pass" or "hit"; "Summer", "Spring", "Winter", "Fall").  Examining probability changes in this case is more intuitive than examining coefficients. 
+
+```{r}
+#plotting individual effects
+plot(Effect(focal.predictors = "Inspection.Date",m_mini))
+plot(Effect(focal.predictors = "HandContamination",m_mini))
+plot(Effect(focal.predictors = "Contamination",m_mini))
+plot(Effect(focal.predictors = "FoodTemperature",m_mini))
+plot(Effect(focal.predictors = "FoodIdentification",m_mini))
+plot(Effect(focal.predictors = "FoodContamination",m_mini))
+plot(Effect(focal.predictors = "ProperUtensils",m_mini))
+plot(Effect(focal.predictors = "Equipment",m_mini))
+plot(Effect(focal.predictors = "PhysicalFacilities",m_mini))
+plot(Effect(focal.predictors = "EmployeeTraining",m_mini))
+
+```
+
+We can also examine fitting the model using probit or complementary log-log (cloglog) methods. However, the probit and cloglog model coefficients are not in terms of log odds and not interpretable as log odds. Given the residual deviance and AIC values for the probit, cloglog, and logistic (the default OLR model which we used to create our m_mini model) are all very similar, we recommend using the original m_mini (logisitic) model for this analysis. 
+
+Reference Source: Analytics Vidhya.  How to use Multinomial and Ordinal Logistic Regression in R, 01 February 2016, analyticsvidhya.com/blog/2016/02/multinomial-ordinal-logistic-regression.
+```{r}
+#update and refit our model with the probit method
+m_mini_probit <- update(m_mini, method = "probit", Hess = TRUE)
+summary(m_mini_probit)
+
+#compare models
+anova(m_mini, m_mini_probit)
+```
+
+```{r}
+#update and refit model using complementary log log
+m_mini_clog <- update(m_mini, method = "cloglog", Hess = TRUE)
+summary(m_mini_clog)
+
+#compare models
+anova(m_mini, m_mini_clog)
+```
+
+
+END
